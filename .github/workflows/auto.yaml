@@ -37,6 +37,7 @@ jobs:
 
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
+          K8S_MANIFESTS_DIR="k8s-manifest"  # Set the correct directory for your manifests
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
             sed -i "s|\(image: [^:]*\)|\1:${{ env.COMMIT_SHA }}|g" "$FILE"
           done
