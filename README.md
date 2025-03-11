@@ -1,70 +1,148 @@
-# Getting Started with Create React App
+name: Build and Push Docker Images to ACR  
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+on:
+  push:
+    branches:
+      - dev-domain 
 
-## Available Scripts
+env:
+  DOMAIN_ACR_NAME: devdomainaks.azurecr.io 
+  K8S_MANIFESTS_DIR: k8s
 
-In the project directory, you can run:
+jobs:
+  Build-and-Push:
+    runs-on: self-hosted
 
-### `npm start`
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+      - name: Install Docker Compose Manually
+        run: |
+          mkdir -p ~/.docker/cli-plugins/
+          curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+          docker compose version
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+      - name: Clean up old Buildx containers and volumes
+        run: |
+          docker ps -a -q --filter "name=buildx_buildkit" | xargs -I {} docker rm -f {}
+          docker volume ls -q --filter "name=buildx_buildkit" | xargs -I {} docker volume rm {}
 
-### `npm test`
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Azure Container Registry (ACR)
+        run: |
+          echo "${{ secrets.DOMAIN_ACR_PASSWORD }}" | docker login ${{ env.DOMAIN_ACR_NAME }} -u ${{ secrets.DOMAIN_ACR_USERNAME }} --password-stdin
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+      - name: Get Commit SHA
+        id: get_commit_sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
 
-### `npm run build`
+      - name: Create .env File
+        run: |
+          cat <<EOF > .env
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          VIRUSTOTAL_API_KEY=${{ secrets.VIRUSTOTAL_API_KEY }}
+          VIEWDNS_API_KEY=${{ secrets.VIEWDNS_API_KEY }}
+          POSTGRES_PASS=${{ secrets.POSTGRES_PASS }}
+          DOMAINREPUTATION_ENV=${{ secrets.DOMAINREPUTATION_ENV }}
+          IPINFO_TOKEN=${{ secrets.IPINFO_TOKEN }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          SECRET=${{ secrets.SECRET }}
+          ALGORITHM=${{ secrets.ALGORITHM }}
+          API_KEY=${{ secrets.API_KEY }}
+          EOF
+        shell: bash
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+      - name: Build Docker images with BuildKit
+        run: |
+          DOCKER_BUILDKIT=1 docker compose build --build-arg BUILDKIT_INLINE_CACHE=1
+          for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
+            IMAGE_NAME=${IMAGE/:latest/}
+            docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
+          done
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+      - name: Push Docker Images to ACR
+        run: |
+          for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
+            IMAGE_NAME=${IMAGE/:latest/}
+            docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
+          done
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+      - name: Logout from ACR
+        run: docker logout ${{ env.ACR_NAME }}
 
-### `npm run eject`
+      - name: Clean Up Everything After Build
+        run: |
+          docker system prune -af --volumes
+          docker builder prune -af
+          sudo rm -rf /var/lib/docker/*
+          sudo rm -rf /var/lib/containerd/*
+          sudo rm -rf ~/.docker
+          sudo systemctl restart docker
+        
+  Deploy-to-AKS:
+    needs: Build-and-Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+      - name: Log in to Azure
+        run: |
+          az login --service-principal \
+            -u "${{ secrets.AZURE_CLIENT_ID }}" \
+            -p "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}"
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+      - name: Set Azure Subscription
+        run: az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+       
+      - name: ACR Login
+        run: |
+          az acr login --name $DOMAIN_ACR_NAME
+       
+      - name: Get Commit SHA
+        id: get_commit_sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+       
+      - name: Get AKS Credentials
+        run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.DOMAIN_CLUSTER_NAME }}
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+      - name: Update Kubernetes Manifests with New Image Tags
+        run: |
+          for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
+            sed -i "s|\(image: [^:]*\)|\1:${{ env.COMMIT_SHA }}|g" "$FILE"
+          done
+          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
+          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+          echo "🚀 Applying updated manifests to AKS..."
+          kubectl apply -f ${K8S_MANIFESTS_DIR}
+    
+      - name: Verify Deployment
+        run: kubectl get pods -n domain-subdomain-tools
 
-## Learn More
+  Deleting-old-images:
+    needs: Build-and-Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+      - name: Login to Azure (Service Principal)
+        run: |
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }} 
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+      - name: Login to Azure Container Registry
+        run: |
+          echo "${{ secrets.DOMAIN_ACR_PASSWORD }}" | docker login ${{ env.DOMAIN_ACR_NAME }} -u ${{ secrets.DOMAIN_ACR_USERNAME }} --password-stdin
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+      - name: Purge old images from ACR            
+        run: |
+          az acr run --registry ${{ env.DOMAIN_ACR_NAME }} --cmd "acr purge --filter '*:.*' --ago 0d --keep 3 --untagged" /dev/null
