@@ -65,15 +65,18 @@ jobs:
       run: |
         ACR_NAME=${{ secrets.ACR_NAME }}
         COMMIT_SHA=${{ github.sha }}
-
+    
         for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-          sed -i "s|image: .*|image: ${ACR_NAME}.azurecr.io/my-image:${COMMIT_SHA}|g" "$FILE"
+          # Replace image tag in the manifest
+          sed -i "s|image: testrepo3.azurecr.io/my-image:.*|image: ${ACR_NAME}.azurecr.io/my-image:${COMMIT_SHA}|g" "$FILE"
         done
+    
         echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
         grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
     
         echo "🚀 Applying updated manifests to AKS..."
         kubectl apply -f ${K8S_MANIFESTS_DIR}
     
+    
     - name: Verify Deployment
-      run: kubectl get pods -n argo1
+      run: kubectl get pods -n argo
