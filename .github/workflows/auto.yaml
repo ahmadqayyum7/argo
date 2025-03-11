@@ -24,7 +24,7 @@ jobs:
         id: get_commit_sha
         run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
 
-        - name: Build Docker images with BuildKit
+      - name: Build Docker images with BuildKit
         run: |
           DOCKER_BUILDKIT=1 docker compose build --build-arg BUILDKIT_INLINE_CACHE=1
           for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
