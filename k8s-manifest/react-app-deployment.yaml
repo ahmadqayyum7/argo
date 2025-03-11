@@ -1,36 +1,53 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: react-app
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: react-app
-  template:
-    metadata:
-      labels:
-        app: react-app
-    spec:
-      containers:
-        - name: react-app
-          image: testrepo3.azurecr.io/react-app
-          ports:
-            - containerPort: 3000
-      imagePullSecrets:
-        - name: acr-auth
+name: Build and Deploy to ACR
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: react-app-service
-spec:
-  selector:
-    app: react-app
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3000
-  type: LoadBalancer
+on:
+  push:
+    branches:
+      - main  # or the branch you want to trigger the pipeline on
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Azure Container Registry (ACR)
+        run: |
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
+
+      - name: Get Commit SHA
+        id: get_commit_sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+
+      - name: Build Docker image with BuildKit
+        run: |
+          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }} .
+
+      - name: Push Docker Image to ACR
+        run: |
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }}
+
+      - name: Logout from ACR
+        run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
+
+      - name: Update Kubernetes Manifests with New Image Tags
+        run: |
+          K8S_MANIFESTS_DIR="k8s-manifest"  # Set the correct directory for your manifests
+          for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
+            sed -i "s|\(image: [^:]*\)|\1:${{ env.COMMIT_SHA }}|g" "$FILE"
+          done
+          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
+          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
+
+      - name: Push Kubernetes Manifests to Git (if using GitOps or Argo CD)
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add ${K8S_MANIFESTS_DIR}/*.yaml
+          git commit -m "Update image tags to ${COMMIT_SHA}"
+          git push origin ${GITHUB_REF}
