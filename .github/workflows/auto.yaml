@@ -18,7 +18,7 @@ jobs:
 
       - name: Log in to Azure Container Registry (ACR)
         run: |
-          echo "${{ secrets.DOMAIN_ACR_PASSWORD }}" | docker login ${{ env.DOMAIN_ACR_NAME }} -u ${{ secrets.DOMAIN_ACR_USERNAME }} --password-stdin
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_NAME }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
       - name: Get Commit SHA
         id: get_commit_sha
