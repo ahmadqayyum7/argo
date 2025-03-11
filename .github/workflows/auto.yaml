@@ -29,12 +29,9 @@ jobs:
   
       - name: Build and Tag Docker Images
         run: |
-          docker compose build
-          for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
-            IMAGE_NAME=${IMAGE/:latest/}
-            docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
-          done
-
+          # Build the Docker image using the Dockerfile in the repository
+          docker build -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }} .
+          
       - name: Push Docker Image to ACR
         run: |
           docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }}
