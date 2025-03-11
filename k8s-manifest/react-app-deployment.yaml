@@ -4,7 +4,7 @@ metadata:
   name: react-app
   namespace: argo1
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: react-app
