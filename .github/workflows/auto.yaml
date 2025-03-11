@@ -11,8 +11,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      commit_sha: ${{ steps.get_commit_sha.outputs.commit_sha }}  # Pass commit_sha to the next job
+    env:
+      COMMIT_SHA: ${{ github.sha }}  # Set commit SHA as an environment variable
 
     steps:
       - name: Checkout code
@@ -25,20 +25,13 @@ jobs:
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
-      - name: Get Commit SHA
-        id: get_commit_sha
-        run: |
-          COMMIT_SHA=$(git rev-parse --short=7 HEAD)
-          echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
-          echo "::set-output name=commit_sha::${COMMIT_SHA}"
-
       - name: Build Docker image with BuildKit
         run: |
-          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }} .
+          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }} .
 
       - name: Push Docker Image to ACR
         run: |
-          docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }}
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }}
 
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
@@ -65,23 +58,19 @@ jobs:
       run: |
         az acr login --name ${{ secrets.ACR_NAME }}
 
-    - name: Get Commit SHA
-      id: get_commit_sha
-      run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
-
     - name: Get AKS Credentials
       run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
 
     - name: Update Kubernetes Manifests with New Image Tags
       run: |
         for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-          envsubst < "$FILE" > "/tmp/$(basename "$FILE")"
+          sed -i "s|\(image: [^:]*\)|\1:${{ env.COMMIT_SHA }}|g" "$FILE"
         done
         echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
-        grep -H "image:" /tmp/*.yaml
+        grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
 
         echo "🚀 Applying updated manifests to AKS..."
-        kubectl apply -f /tmp/
+        kubectl apply -f ${K8S_MANIFESTS_DIR}
 
     - name: Verify Deployment
       run: kubectl get pods -n argo1
