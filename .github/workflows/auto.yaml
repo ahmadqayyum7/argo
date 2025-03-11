@@ -36,15 +36,42 @@ jobs:
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
-      - name: Update Kubernetes Manifests with New Image Tags
-        run: |
-          for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-            # Replace the image tag in the YAML file
-            sed -i "s|\(image: [^:]*\)|image: ${ACR_NAME}.azurecr.io/my-image:${{ env.COMMIT_SHA }}|g" "$FILE"
-          done
-          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
-          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-      
-          echo "🚀 Applying updated manifests to AKS..."
-          kubectl apply -f ${K8S_MANIFESTS_DIR}
-      
+  Deploy-to-AKS:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Azure
+      run: |
+        az login --service-principal \
+          -u "${{ secrets.AZURE_CLIENT_ID }}" \
+          -p "${{ secrets.AZURE_CLIENT_SECRET }}" \
+          --tenant "${{ secrets.AZURE_TENANT_ID }}"
+
+    - name: Set Azure Subscription
+      run: az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+    - name: ACR Login
+      run: |
+        az acr login --name ${{ secrets.ACR_NAME }}
+
+    - name: Get AKS Credentials
+      run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
+
+    - name: Update Kubernetes Manifests with New Image Tags
+      run: |
+        for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
+          # Replace the image tag in the YAML file
+          sed -i "s|\(image: [^:]*\)|image: ${ACR_NAME}.azurecr.io/my-image:${{ env.COMMIT_SHA }}|g" "$FILE"
+        done
+        echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
+        grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
+    
+        echo "🚀 Applying updated manifests to AKS..."
+        kubectl apply -f ${K8S_MANIFESTS_DIR}
+    
+    - name: Verify Deployment
+      run: kubectl get pods -n argo1
