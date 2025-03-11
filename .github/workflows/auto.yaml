@@ -11,9 +11,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      COMMIT_SHA: ${{ github.sha }}  # Set commit SHA as an environment variable
-
+    outputs:
+      commit_sha: ${{ steps.get_commit_sha.outputs.commit_sha }}  # Pass commit SHA as output
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -24,14 +24,18 @@ jobs:
       - name: Log in to Azure Container Registry (ACR)
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
+      
+      - name: Get Commit SHA
+        id: get_commit_sha
+        run: echo "::set-output name=commit_sha::$(git rev-parse --short=7 HEAD)"  # Set commit SHA as output
 
       - name: Build Docker image with BuildKit
         run: |
-          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }} .
+          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }} .
 
       - name: Push Docker Image to ACR
         run: |
-          docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ env.COMMIT_SHA }}
+          docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }}
 
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
@@ -64,7 +68,7 @@ jobs:
     - name: Update Kubernetes Manifests with New Image Tags
       run: |
         ACR_NAME=${{ secrets.ACR_NAME }}
-        COMMIT_SHA=${{ github.sha }}
+        COMMIT_SHA=${{ needs.build.outputs.commit_sha }}  # Get the commit SHA from the build job
     
         for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
           # Replace image tag in the manifest
@@ -76,7 +80,6 @@ jobs:
     
         echo "🚀 Applying updated manifests to AKS..."
         kubectl apply -f ${K8S_MANIFESTS_DIR}
-    
     
     - name: Verify Deployment
       run: kubectl get pods -n argo
