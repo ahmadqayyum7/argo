@@ -69,6 +69,7 @@ jobs:
 
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
+          echo "Replacing image tag in Kubernetes manifests..."
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
             sed -i "s|testrepo3.azurecr.io/my-image:[^ ]*|testrepo3.azurecr.io/my-image:${{ env.COMMIT_SHA }}|g" "$FILE"
           done
