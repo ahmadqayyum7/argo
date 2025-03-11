@@ -11,8 +11,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      commit_sha: ${{ steps.get_commit_sha.outputs.commit_sha }}  # Pass commit SHA as output
     
     steps:
       - name: Checkout code
@@ -27,12 +25,16 @@ jobs:
       
       - name: Get Commit SHA
         id: get_commit_sha
-        run: echo "::set-output name=commit_sha::$(git rev-parse --short=7 HEAD)"  # Set commit SHA as output
-
-      - name: Build Docker image with BuildKit
+        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+  
+        - name: Build and Tag Docker Images
         run: |
-          DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }} .
-
+          docker compose build
+          for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
+            IMAGE_NAME=${IMAGE/:latest/}
+            docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
+          done
+          
       - name: Push Docker Image to ACR
         run: |
           docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }}
