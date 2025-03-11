@@ -15,23 +15,8 @@ spec:
     spec:
       containers:
         - name: react-app
-          image: testrepo3.azurecr.io/my-image:${COMMIT_SHA}
+          image: testrepo3.azurecr.io/my-image:${COMMIT_SHA}  # This will be updated correctly by GitHub Actions
           ports:
             - containerPort: 3000
       imagePullSecrets:
         - name: acr-auth
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: react-app-service
-  namespace: argo1
-spec:
-  selector:
-    app: react-app
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3000
-  type: LoadBalancer
