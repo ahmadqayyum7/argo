@@ -27,14 +27,14 @@ jobs:
         id: get_commit_sha
         run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
   
-        - name: Build and Tag Docker Images
+       - name: Build and Tag Docker Images
         run: |
           docker compose build
           for IMAGE in $(docker compose config | awk '/image:/ {print $2}'); do
             IMAGE_NAME=${IMAGE/:latest/}
             docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
           done
-          
+
       - name: Push Docker Image to ACR
         run: |
           docker push ${{ secrets.ACR_NAME }}.azurecr.io/my-image:${{ steps.get_commit_sha.outputs.commit_sha }}
