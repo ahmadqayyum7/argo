@@ -7,7 +7,7 @@ function App() {
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
-          Deployed by CI/CD to ArgoCd and testing with image tags.
+          Deployed by CI/CD to ArgoCd and testing with image tags and.
         </p>
         <a
           className="App-link"
