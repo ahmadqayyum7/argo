@@ -27,20 +27,19 @@ jobs:
         id: get_commit_sha
         run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
   
-       - name: Build and Tag Docker Image
-         run: |
-           IMAGE_NAME="your-image-name"
-           docker build -t $IMAGE_NAME:latest .
-           docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
+      - name: Build and Tag Docker Image
+        run: |
+          IMAGE_NAME="your-image-name"
+          docker build -t $IMAGE_NAME:latest .
+          docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
           
-       - name: Push Docker Image to ACR
-         run: |
-           IMAGE_NAME="your-image-name"
-           docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
-         
+      - name: Push Docker Image to ACR
+        run: |
+          IMAGE_NAME="your-image-name"
+          docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
      
-       - name: Logout from ACR
-         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
+      - name: Logout from ACR
+        run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
   Deploy-to-AKS:
     needs: build
@@ -81,5 +80,6 @@ jobs:
 
           echo "🚀 Applying updated manifests to AKS..."
           kubectl apply -f ${K8S_MANIFESTS_DIR}
+
       - name: Verify Deployment
         run: kubectl get pods -n argo
