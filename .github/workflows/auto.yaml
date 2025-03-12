@@ -29,13 +29,13 @@ jobs:
   
       - name: Build and Tag Docker Image
         run: |
-          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/your-image-name"
+          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
           docker build -t $IMAGE_NAME:latest .
           docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
           
       - name: Push Docker Image to ACR
         run: |
-          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/your-image-name"
+          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
           docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
      
       - name: Logout from ACR
