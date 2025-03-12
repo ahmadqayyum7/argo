@@ -88,8 +88,9 @@ jobs:
         run: |
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "actions@github.com"
-          git remote set-url origin https://$MY_GITHUB_TOKEN@github.com/ahmadqayyum7/argo-cd.git 
-
+          git remote set-url origin https://$MY_GITHUB_TOKEN@github.com/ahmadqayyum7/argo-cd.git
+        env:
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       - name: Test Authentication with Curl
         run: |
           curl -u "ahmadqayyum7:$MY_GITHUB_TOKEN" https://api.github.com/user 
