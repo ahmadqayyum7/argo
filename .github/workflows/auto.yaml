@@ -23,11 +23,18 @@ jobs:
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
   
-      - name: Build and Push Docker Image with Latest Tag
+      - name: Build and Push Docker Image with Latest and Versioned Tag
         run: |
           IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
-          docker build -t $IMAGE_NAME:latest .
+          COMMIT_SHA=$(git rev-parse --short=7 HEAD)
+        
+          # Build and tag the image
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_SHA .
+        
+          
           docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:$COMMIT_SHA
+        
      
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
