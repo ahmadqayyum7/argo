@@ -30,8 +30,9 @@ jobs:
       - name: Build and Tag Docker Image
         run: |
           IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
-          docker build -t $IMAGE_NAME:${{ env.COMMIT_SHA }} .
-
+          docker build -t $IMAGE_NAME:latest .
+          docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ env.COMMIT_SHA }}
+          
       - name: Push Docker Image to ACR
         run: |
           IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
@@ -73,10 +74,13 @@ jobs:
         run: |
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
             sed -i 's|\(image: testrepo3.azurecr.io/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
-          done
 
-      - name: Apply Updated Manifests
-        run: kubectl apply -f ${K8S_MANIFESTS_DIR}
-      
+          done
+          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
+          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
+
+          echo "🚀 Applying updated manifests to AKS..."
+          kubectl apply -f ${K8S_MANIFESTS_DIR}
+
       - name: Verify Deployment
         run: kubectl get pods -n argos
