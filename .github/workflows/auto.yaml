@@ -71,7 +71,8 @@ jobs:
       - name: Deploy Kubernetes Manifests
         run: |
           echo "🚀 Applying Kubernetes manifests to AKS..."
-          kubectl apply -f ${K8S_MANIFESTS_DIR}
+          kubectl apply -f ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+
 
       - name: Verify Deployment
         run: kubectl get pods -n argos
