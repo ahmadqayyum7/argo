@@ -60,7 +60,7 @@ jobs:
         run: kubectl apply -f ${K8S_MANIFESTS_DIR}
 
       - name: Restart Kubernetes Deployment
-        run: kubectl rollout restart deployment react-app -n argo
+        run: kubectl rollout restart deployment react-app -n argos
 
       - name: Verify Deployment
-        run: kubectl get pods -n argo
+        run: kubectl get pods -n argos
