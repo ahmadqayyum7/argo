@@ -82,10 +82,11 @@ jobs:
       - name: Commit and Push Changes to GitHub
         run: |
             git add ${K8S_MANIFESTS_DIR}/*.yaml
-            git commit -m "Update image tag to ${COMMIT_SHA}"
+            git commit -m "Update image tag to ${{ env.COMMIT_SHA }}"
             git push https://$GITHUB_ACTOR:${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
-          env:
+        env:
             GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+
             
       - name: Verify Deployment
         run: kubectl get pods -n argo
