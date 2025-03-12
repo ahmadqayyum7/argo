@@ -3,7 +3,7 @@ name: Build and Deploy to ACR
 on:
   push:
     branches:
-      - main
+      - main  # or the branch you want to trigger the pipeline on
 
 env:
   K8S_MANIFESTS_DIR: k8s-manifest  
@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -23,23 +23,12 @@ jobs:
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
   
-      - name: Build and Push Docker Image with Unique Tag
+      - name: Build and Push Docker Image with Latest Tag
         run: |
-          VERSION=$(date +%Y%m%d%H%M%S)
-          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image:$VERSION"
-
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
-
-          # Tag as latest (optional)
-          docker tag $IMAGE_NAME "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
-          docker push "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
-
-          echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
-      
-      - name: Set IMAGE_TAG Environment Variable
-        run: echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-      
+          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
+          docker build -t $IMAGE_NAME:latest .
+          docker push $IMAGE_NAME:latest
+     
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
@@ -67,18 +56,11 @@ jobs:
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
 
-      - name: Update Image Tag in Kubernetes Manifests
-        run: |
-          sed -i "s|image: testrepo3.azurecr.io/my-image:[^ ]*|image: testrepo3.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+      - name: Apply Kubernetes Manifests
+        run: kubectl apply -f ${K8S_MANIFESTS_DIR}
 
-
-      - name: Debug Kubernetes Manifest
-        run: cat ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml  # Debugging Step
-
-      - name: Deploy Kubernetes Manifests
-        run: |
-          echo "🚀 Applying Kubernetes manifests to AKS..."
-          kubectl apply -f ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+      - name: Restart Kubernetes Deployment
+        run: kubectl rollout restart deployment react-app -n argo
 
       - name: Verify Deployment
-        run: kubectl get pods -n argos
+        run: kubectl get pods -n argo
