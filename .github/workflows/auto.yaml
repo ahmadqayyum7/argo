@@ -31,7 +31,7 @@ jobs:
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
 
-          # Optional: Tag as latest (not recommended)
+          # Tag as latest (optional)
           docker tag $IMAGE_NAME "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
           docker push "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
 
@@ -66,13 +66,15 @@ jobs:
 
       - name: Update Image Tag in Kubernetes Manifests
         run: |
-          sed -i "s|image: testrepo3.azurecr.io/my-image.*|image: testrepo3.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+          sed -i "s|image: testrepo3.azurecr.io/my-image:[^ ]*|image: testrepo3.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+
+      - name: Debug Kubernetes Manifest
+        run: cat ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml  # Debugging Step
 
       - name: Deploy Kubernetes Manifests
         run: |
           echo "🚀 Applying Kubernetes manifests to AKS..."
           kubectl apply -f ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
-
 
       - name: Verify Deployment
         run: kubectl get pods -n argos
