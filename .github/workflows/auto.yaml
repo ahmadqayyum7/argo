@@ -89,7 +89,13 @@ jobs:
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "actions@github.com"
           git remote set-url origin https://$MY_GITHUB_TOKEN@github.com/ahmadqayyum7/argo-cd.git 
-      
+
+      - name: Test Authentication with Curl
+        run: |
+          curl -u "ahmadqayyum7:$MY_GITHUB_TOKEN" https://api.github.com/user 
+        env:
+          ARGO_CD_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+
       - name: Push Changes to argo-cd Repository
         run: |
           git fetch origin
@@ -99,5 +105,4 @@ jobs:
           git commit -m "Update Kubernetes manifests with new image tags"
           git push origin main
         env:
-          ARGO_CD_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }} 
-      
+          ARGO_CD_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
