@@ -22,29 +22,17 @@ jobs:
       - name: Log in to Azure Container Registry (ACR)
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
-      
-      - name: Get Commit SHA
-        id: get_commit_sha
-        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
   
-      - name: Build and Push Docker Image with Latest and Versioned Tag
+      - name: Build and Push Docker Image without Tags
         run: |
           IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
-          COMMIT_SHA=$(git rev-parse --short=7 HEAD)
       
-          # Build and tag the image
-          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$COMMIT_SHA .
-      
-          # Push both tags
-          docker push $IMAGE_NAME:latest
-          docker push $IMAGE_NAME:$COMMIT_SHA
-      
-          
-      - name: Push Docker Image to ACR
-        run: |
-          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
-          docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
-     
+          # Build the image (without tagging)
+          docker build -t $IMAGE_NAME .
+
+          # Push the image (without explicit tags)
+          docker push $IMAGE_NAME
+
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
@@ -70,23 +58,12 @@ jobs:
         run: |
           az acr login --name ${{ secrets.ACR_NAME }}
 
-      - name: Get Commit SHA
-        id: get_commit_sha
-        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
-
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
 
-      - name: Update Kubernetes Manifests with New Image Tags
+      - name: Deploy Kubernetes Manifests
         run: |
-          for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-            sed -i 's|\(image: testrepo3.azurecr.io/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
-
-          done
-          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
-          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-
-          echo "🚀 Applying updated manifests to AKS..."
+          echo "🚀 Applying Kubernetes manifests to AKS..."
           kubectl apply -f ${K8S_MANIFESTS_DIR}
 
       - name: Verify Deployment
