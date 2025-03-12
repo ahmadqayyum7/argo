@@ -13,6 +13,7 @@ spec:
       labels:
         app: react-app
     spec:
+      serviceAccountName: react-app-sa
       imagePullSecrets:
         - name: acr-auth
       containers:
