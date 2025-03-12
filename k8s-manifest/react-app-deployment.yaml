@@ -18,6 +18,7 @@ spec:
       containers:
         - name: react-app
           image: testrepo3.azurecr.io/my-image
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
       
