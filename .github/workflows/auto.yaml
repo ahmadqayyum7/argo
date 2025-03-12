@@ -3,7 +3,7 @@ name: Build and Deploy to ACR
 on:
   push:
     branches:
-      - main  # or the branch you want to trigger the pipeline on
+      - main
 
 env:
   K8S_MANIFESTS_DIR: k8s-manifest  
@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -23,15 +23,19 @@ jobs:
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
   
-      - name: Build and Push Docker Image without Tags
+      - name: Build and Push Docker Image with Unique Tag
         run: |
-          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
-      
-          # Build the image (without tagging)
-          docker build -t $IMAGE_NAME .
+          VERSION=$(date +%Y%m%d%H%M%S)
+          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image:$VERSION"
 
-          # Push the image (without explicit tags)
+          docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
+
+          # Optional: Tag as latest (not recommended)
+          docker tag $IMAGE_NAME "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
+          docker push "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
+
+          echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
 
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
@@ -55,11 +59,14 @@ jobs:
         run: az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
       - name: ACR Login
-        run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
+        run: az acr login --name ${{ secrets.ACR_NAME }}
 
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Update Image Tag in Kubernetes Manifests
+        run: |
+          sed -i "s|image: ${{ secrets.ACR_NAME }}.azurecr.io/my-image.*|image: ${{ secrets.ACR_NAME }}.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/deployment.yaml
 
       - name: Deploy Kubernetes Manifests
         run: |
