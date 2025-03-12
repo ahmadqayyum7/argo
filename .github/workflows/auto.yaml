@@ -84,19 +84,14 @@ jobs:
       - name: Verify Deployment
         run: kubectl get pods -n argo
 
-      - name: Checkout code for the second repository (argo-cd)
-        uses: actions/checkout@v2
-        with:
-          repository: 'ahmadqayyum7/argo-cd'  # Replace with your second repo's name
-          token: ${{ secrets.GH_TOKEN }}      # Use the token for authentication
-
-      - name: Push generated webpage to another repository
+      - name: Push Kubernetes Manifests to argo-cd Repo
         uses: nkoppel/push-files-to-another-repository@v1.1.4
         env:
-          API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}  # Use the token for authentication
+          API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}  # GitHub API token for authentication
         with:
-          source-files: 'webpage/*'  # Path to your generated files, e.g., all files in the webpage folder
+          source-files: 'k8s-manifest/*'  # Path to your k8s-manifest files
           destination-username: 'ahmadqayyum7'  # Your GitHub username
-          destination-repository: 'argo-cd'  # Destination repository name (adjust to your actual repo)
-          destination-directory: ''  # No folder, just push to the root of the destination repo
+          destination-repository: 'argo-cd'  # Destination repository name
+          destination-directory: ''  # No folder, push to the root of the destination repo
           commit-email: 'ahmadqayyum19@gmail.com'
+          destination-branch: 'main'  # Ensure this matches the default branch of the destination repository
