@@ -26,7 +26,7 @@ jobs:
       - name: Get Commit SHA
         id: get_commit_sha
         run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
-  
+          
       - name: Build and Tag Docker Image
         run: |
           IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/my-image"
@@ -84,12 +84,21 @@ jobs:
       - name: Verify Deployment
         run: kubectl get pods -n argo
 
+      # Commit the changes to the repository before pushing to argo-cd
+      - name: Commit the updated Kubernetes manifests
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "gh-actions@github.com"
+          git add ${K8S_MANIFESTS_DIR}/*.yaml
+          git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
+          git push origin main
+
       - name: Push Kubernetes Manifests to argo-cd Repo
         uses: nkoppel/push-files-to-another-repository@v1.1.4
         env:
           API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}  # GitHub API token for authentication
         with:
-          source-files: 'k8s-manifest/*'  # Path to your k8s-manifest files
+          source-files: 'k8s-manifest/react-app-deployment.yaml'
           destination-username: 'ahmadqayyum7'  # Your GitHub username
           destination-repository: 'argo-cd'  # Destination repository name
           destination-directory: ''  # No folder, push to the root of the destination repo
