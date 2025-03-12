@@ -77,7 +77,7 @@ jobs:
       - name: Set up Git user
         run: |
           git config --global user.name "ahmadqayyum7"
-          git config --global user.email "ahmadqayyum19@gmail.com"  # Optional, add your email here
+          git config --global user.email "ahmadqayyum19@gmail.com" 
         
       - name: Commit and Push Changes to GitHub
         run: |
