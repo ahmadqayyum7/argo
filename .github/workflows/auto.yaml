@@ -83,9 +83,9 @@ jobs:
         run: |
             git add ${K8S_MANIFESTS_DIR}/*.yaml
             git commit -m "Update image tag to ${{ env.COMMIT_SHA }}"
-            git push https://$GITHUB_ACTOR:${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+            git push https://github.com/${{ github.repository }} HEAD:main
         env:
-            GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             
       - name: Verify Deployment
