@@ -84,14 +84,22 @@ jobs:
       - name: Verify Deployment
         run: kubectl get pods -n argo
 
-      # Push generated webpage to another repository
-      - name: Push generated webpage to another repository
-        uses: nkoppel/push-files-to-another-repository@v1.1.4
+      - name: Update Kubernetes Manifests in Another Repo
+        run: |
+          # Clone the second repository
+          git clone https://github.com/ahmadqayyum7/argo-cd.git 
+          cd argo-cd
+
+          # Configure Git with a name and email
+          git config user.name "ahmadqayyum7" 
+          git config user.email "ahmadqayyum19@gmail.com" 
+
+          # Copy the updated manifests into the second repo
+          cp -r ../${K8S_MANIFESTS_DIR}/* .
+
+          # Commit and push changes to the second repo
+          git add .
+          git commit -m "Update Kubernetes manifests with commit ${GITHUB_SHA}"
+          git push https://github.com/ahmadqayyum7/argo-cd.git HEAD:main --force 
         env:
-          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}  # GitHub API token for authentication
-        with:
-          source-files: 'webpage/*'  # Path to your generated files, e.g., all files in the webpage folder
-          destination-username: 'ahmadqayyum7'  # Your GitHub username
-          destination-repository: 'argo-cd'  # Destination repository name (adjust to your actual repo)
-          destination-directory: ''  # No folder, just push to the root of the destination repo
-          commit-email: 'ahmadqayyum19@gmail.com'
+          SECOND_REPO_PAT: ${{ secrets.MY_GITHUB_TOKEN }} 
