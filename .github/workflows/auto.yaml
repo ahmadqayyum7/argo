@@ -36,7 +36,10 @@ jobs:
           docker push "${{ secrets.ACR_NAME }}.azurecr.io/my-image:latest"
 
           echo "IMAGE_TAG=$VERSION" >> $GITHUB_ENV
-
+      
+      - name: Set IMAGE_TAG Environment Variable
+        run: echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" >> $GITHUB_ENV
+      
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
@@ -66,7 +69,7 @@ jobs:
 
       - name: Update Image Tag in Kubernetes Manifests
         run: |
-          sed -i "s|\(image: testrepo3.azurecr.io/my-image:\)[^ ]*|\1$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+          sed -i "s|\(image: .*/my-image:\).*|\1$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
 
 
       - name: Debug Kubernetes Manifest
