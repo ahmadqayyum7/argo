@@ -35,7 +35,7 @@ jobs:
           
       - name: Push Docker Image to ACR
         run: |
-          IMAGE_NAME="your-image-name"
+          IMAGE_NAME="${{ secrets.ACR_NAME }}.azurecr.io/your-image-name"
           docker push $IMAGE_NAME:${{ env.COMMIT_SHA }}
      
       - name: Logout from ACR
