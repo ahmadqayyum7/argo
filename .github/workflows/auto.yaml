@@ -22,7 +22,7 @@ jobs:
       - name: Log in to Azure Container Registry (ACR)
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
-      
+          
       - name: Get Commit SHA
         id: get_commit_sha
         run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
@@ -74,7 +74,6 @@ jobs:
         run: |
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
             sed -i 's|\(image: testrepo3.azurecr.io/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
-
           done
           echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
           grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
@@ -84,3 +83,17 @@ jobs:
 
       - name: Verify Deployment
         run: kubectl get pods -n argo
+
+      - name: Push Changes to argo-cd Repository
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git remote add argo-cd https://github.com/ahmadqayyum7/argo-cd.git
+          git fetch argo-cd
+          git checkout main
+          cp -r ${K8S_MANIFESTS_DIR}/* .
+          git add .
+          git commit -m "Update Kubernetes manifests with new image tags"
+          git push argo-cd main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
