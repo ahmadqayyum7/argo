@@ -69,7 +69,7 @@ jobs:
 
       - name: Update Image Tag in Kubernetes Manifests
         run: |
-          sed -i "s|image: testrepo3.azurecr.io/my-image:.*|image: testrepo3.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
+          sed -i "s|image: testrepo3.azurecr.io/my-image:[^ ]*|image: testrepo3.azurecr.io/my-image:$IMAGE_TAG|" ${K8S_MANIFESTS_DIR}/react-app-deployment.yaml
 
 
       - name: Debug Kubernetes Manifest
