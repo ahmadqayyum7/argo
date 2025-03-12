@@ -79,8 +79,8 @@ jobs:
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "your-email@example.com"  # Optional, add your email here
         
-       - name: Commit and Push Changes to GitHub
-         run: |
+      - name: Commit and Push Changes to GitHub
+        run: |
             git add ${K8S_MANIFESTS_DIR}/*.yaml
             git commit -m "Update image tag to ${COMMIT_SHA}"
             git push https://$GITHUB_ACTOR:${{ secrets.MY_GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
