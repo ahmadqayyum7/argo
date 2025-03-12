@@ -63,30 +63,24 @@ jobs:
         run: |
           az acr login --name ${{ secrets.ACR_NAME }}
 
+      - name: Get Commit SHA
+        id: get_commit_sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
 
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-            sed -i 's|\(image: testrepo3.azurecr.io/my-image\):.*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
+            sed -i 's|\(image: testrepo3.azurecr.io/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
+
           done
           echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
           grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-      
-      - name: Set up Git user
-        run: |
-          git config --global user.name "ahmadqayyum7"
-          git config --global user.email "ahmadqayyum19@gmail.com" 
-        
-      - name: Commit and Push Changes to GitHub
-        run: |
-            git add ${K8S_MANIFESTS_DIR}/*.yaml
-            git commit -m "Update image tag to ${{ env.COMMIT_SHA }}"
-            git push https://github.com/${{ github.repository }} HEAD:main
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            
+          echo "🚀 Applying updated manifests to AKS..."
+          kubectl apply -f ${K8S_MANIFESTS_DIR}
+
       - name: Verify Deployment
         run: kubectl get pods -n argo
