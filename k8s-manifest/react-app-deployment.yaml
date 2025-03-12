@@ -17,7 +17,7 @@ spec:
         - name: acr-auth
       containers:
         - name: react-app
-          image: testrepo3.azurecr.io/my-image
+          image: testrepo3.azurecr.io/my-image:{{IMAGE_TAG}}
           ports:
             - containerPort: 3000
       
