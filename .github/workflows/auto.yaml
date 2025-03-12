@@ -73,14 +73,11 @@ jobs:
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
           for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-            sed -i "s|PLACEHOLDER_TAG|${{ env.COMMIT_SHA }}|g" "$FILE"
+            sed -i "s|\(image: [^:]*\)|\1:${{ env.COMMIT_SHA }}|g" "$FILE"
           done
           echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
           grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-          
-          echo "🔍 Checking updated Kubernetes manifests..."
-          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-          
+
           echo "🚀 Applying updated manifests to AKS..."
           kubectl apply -f ${K8S_MANIFESTS_DIR}
 
