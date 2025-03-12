@@ -77,7 +77,10 @@ jobs:
           done
           echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
           grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-
+          
+          echo "🔍 Checking updated Kubernetes manifests..."
+          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
+          
           echo "🚀 Applying updated manifests to AKS..."
           kubectl apply -f ${K8S_MANIFESTS_DIR}
 
