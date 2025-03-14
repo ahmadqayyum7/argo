@@ -111,7 +111,7 @@ jobs:
           destination-branch: 'main'  # Ensure this matches the default branch of the destination repository
   
   Deleting-old-images:
-    needs: build
+    needs: Deploy-to-argo-cd
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository code
