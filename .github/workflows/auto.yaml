@@ -122,4 +122,4 @@ jobs:
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
       - name: Purge old images from ACR            
         run: |
-          az acr run --registry ${{ env.DOMAIN_ACR_NAME }} --cmd "acr purge --filter '*:.*' --ago 0d --keep 3 --untagged" /dev/null
+          az acr run --registry ${{ secrets.ACR_NAME }} --cmd "acr purge --filter '*:.*' --ago 0d --keep 3 --untagged" /dev/null
