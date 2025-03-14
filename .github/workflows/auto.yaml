@@ -41,13 +41,17 @@ jobs:
       - name: Logout from ACR
         run: docker logout ${{ secrets.ACR_NAME }}.azurecr.io
 
-  Deploy-to-AKS:
+  update-argo-manifests:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout argo-cd repository
         uses: actions/checkout@v4
+        with:
+          repository: ahmadqayyum7/argo-cd  # Your Argo CD repo
+          token: ${{ secrets.GH_TOKEN }}  # GitHub token for authentication
+          path: argo-cd
 
       - name: Log in to Azure
         run: |
@@ -59,27 +63,17 @@ jobs:
       - name: Set Azure Subscription
         run: az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
-      - name: ACR Login
-        run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
-
-      - name: Get Commit SHA
-        id: get_commit_sha
-        run: echo "COMMIT_SHA=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
-
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
 
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
-          for FILE in ${K8S_MANIFESTS_DIR}/*.yaml; do
-            sed -i 's|\(image: testrepo3.azurecr.io/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
+          cd argo-cd
+          for FILE in *.yaml; do  # Ensure we are looking in the root directory
+            sed -i 's|\(image: .*/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
           done
-          echo "✅ The following Kubernetes manifests have been updated with COMMIT_SHA:"
-          grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
-
-          echo "🚀 Applying updated manifests to AKS..."
-          kubectl apply -f ${K8S_MANIFESTS_DIR}
+          echo "✅ Updated Kubernetes manifests with new image tag:"
+          grep -H "image:" *.yaml  # Check updated files in the root
 
       - name: Verify Deployment
         run: kubectl get pods -n argo
@@ -87,20 +81,14 @@ jobs:
       # Commit the changes to the repository before pushing to argo-cd
       - name: Commit the updated Kubernetes manifests
         run: |
+          cd argo-cd
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "ahmadqayyum19@gmail.com"
-          git add ${K8S_MANIFESTS_DIR}/*.yaml
+          git add *.yaml
           git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
+          
+          # Pull the latest changes to prevent conflicts
+          git pull --rebase origin main
+          
+          # Push the changes
           git push origin main
-
-      - name: Push Kubernetes Manifests to argo-cd Repo
-        uses: nkoppel/push-files-to-another-repository@v1.1.4
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}  # GitHub API token for authentication
-        with:
-          source-files: 'k8s-manifest/react-app-deployment.yaml'
-          destination-username: 'ahmadqayyum7'  # Your GitHub username
-          destination-repository: 'argo-cd'  # Destination repository name
-          destination-directory: ''  # No folder, push to the root of the destination repo
-          commit-email: 'ahmadqayyum19@gmail.com'
-          destination-branch: 'main'  # Ensure this matches the default branch of the destination repository
