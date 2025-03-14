@@ -89,7 +89,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Commit the changes to the repository before pushing to argo-cd
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+        # Commit the changes to the repository before pushing to argo-cd
       - name: Commit the updated Kubernetes manifests
         run: |
           git config --global user.name "ahmadqayyum7"
