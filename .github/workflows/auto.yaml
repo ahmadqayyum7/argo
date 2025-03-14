@@ -67,7 +67,7 @@ jobs:
           cd argo-cd
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "ahmadqayyum19@gmail.com"
-          git add ${K8S_MANIFESTS_DIR}/*.yaml
+          git add *.yaml
           git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
           
           # Pull the latest changes to prevent conflicts
