@@ -84,6 +84,11 @@ jobs:
       - name: Verify Deployment
         run: kubectl get pods -n argo
 
+  Deploy-to-argo-cd:
+    needs: Deploy-to-AKS
+    runs-on: ubuntu-lates
+
+    steps:
       # Commit the changes to the repository before pushing to argo-cd
       - name: Commit the updated Kubernetes manifests
         run: |
