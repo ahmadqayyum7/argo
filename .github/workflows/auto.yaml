@@ -84,15 +84,7 @@ jobs:
       - name: Verify Deployment
         run: kubectl get pods -n argo
 
-  Deploy-to-argo-cd:
-    needs: Deploy-to-AKS
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-        # Commit the changes to the repository before pushing to argo-cd
+      # Commit the changes to the repository before pushing to argo-cd
       - name: Commit the updated Kubernetes manifests
         run: |
           git config --global user.name "ahmadqayyum7"
@@ -112,22 +104,3 @@ jobs:
           destination-directory: ''  # No folder, push to the root of the destination repo
           commit-email: 'ahmadqayyum19@gmail.com'
           destination-branch: 'main'  # Ensure this matches the default branch of the destination repository
-  
-  Deleting-old-images:
-    needs: Deploy-to-argo-cd
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository code
-        uses: actions/checkout@v4
-
-      - name: Login to Azure (Service Principal)
-        run: |
-          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }} 
-
-      - name: Login to Azure Container Registry
-        run: |
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
-
-      - name: Purge old images from ACR            
-        run: |
-          az acr run --registry ${{ env.DOMAIN_ACR_NAME }} --cmd "acr purge --filter '*:.*' --ago 0d --keep 3 --untagged" /dev/null
