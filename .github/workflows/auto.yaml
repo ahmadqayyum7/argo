@@ -69,16 +69,18 @@ jobs:
       - name: Update Kubernetes Manifests with New Image Tags
         run: |
           cd argo-cd
-          for FILE in *.yaml; do  # Ensure we are looking in the root directory
+          for FILE in *.yaml; do
             sed -i 's|\(image: .*/my-image\).*|\1:'"${{ env.COMMIT_SHA }}"'|g' "$FILE"
           done
           echo "✅ Updated Kubernetes manifests with new image tag:"
           grep -H "image:" *.yaml  # Check updated files in the root
 
-      - name: Verify Deployment
-        run: kubectl get pods -n argo
+      - name: Check if changes are detected
+        run: |
+          cd argo-cd
+          git status  # Check if the files are modified
+          git diff    # Show the difference in the files
 
-      # Commit the changes to the repository before pushing to argo-cd
       - name: Commit the updated Kubernetes manifests
         run: |
           cd argo-cd
