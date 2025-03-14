@@ -101,7 +101,7 @@ jobs:
           source-files: 'k8s-manifest/react-app-deployment.yaml'
           destination-username: 'ahmadqayyum7'  # Your GitHub username
           destination-repository: 'argo-cd'  # Destination repository name
-          destination-directory: ''  # No folder, push to the root of the destination repo
+          destination-directory: 'k8s-manifest/'  
           commit-email: 'ahmadqayyum19@gmail.com'
           destination-branch: 'main'  # Ensure this matches the default branch of the destination repository
  
