@@ -17,7 +17,7 @@ spec:
         - name: acr-auth
       containers:
         - name: react-app
-          image: testrepo3.azurecr.io/my-image:e0d6320
+          image: testrepo3.azurecr.io/my-image:44fa98d
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
