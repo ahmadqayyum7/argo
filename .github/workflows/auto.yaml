@@ -62,11 +62,23 @@ jobs:
           echo "✅ Updated Kubernetes manifests with new image tag:"
           grep -H "image:" ${K8S_MANIFESTS_DIR}/*.yaml
 
-      - name: Commit and Push the Updated Manifests
+          echo "🚀 Applying updated manifests to AKS..."
+          kubectl apply -f ${K8S_MANIFESTS_DIR}
+
+      - name: Verify Deployment
+        run: kubectl get pods -n argo
+
+      # Commit the changes to the repository before pushing to argo-cd
+      - name: Commit the updated Kubernetes manifests
         run: |
           cd argo-cd
           git config --global user.name "ahmadqayyum7"
           git config --global user.email "ahmadqayyum19@gmail.com"
-          git add ${K8S_MANIFESTS_DIR}/*.yaml
+          git add *.yaml
           git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
+          
+          # Pull the latest changes to prevent conflicts
+          git pull --rebase origin main
+          
+          # Push the changes
           git push origin main
