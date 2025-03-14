@@ -91,10 +91,13 @@ jobs:
           git config --global user.email "ahmadqayyum19@gmail.com"
           git add ${K8S_MANIFESTS_DIR}/*.yaml
           
+          # Check for uncommitted changes and commit them if any
+          git diff --quiet || git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
+          
           # Pull remote changes with rebase to avoid conflicts
           git pull --rebase origin main
-          
-          git commit -m "Update Kubernetes manifests with new image tag ${COMMIT_SHA}"
+
+          # Push changes to the main branch
           git push origin main
 
       - name: Push Kubernetes Manifests to argo-cd Repo
